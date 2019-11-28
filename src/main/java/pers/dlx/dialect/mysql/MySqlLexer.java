@@ -1,7 +1,6 @@
 package pers.dlx.dialect.mysql;
 
 
-import pers.dlx.DbType;
 import pers.dlx.parser.*;
 
 import java.util.HashMap;

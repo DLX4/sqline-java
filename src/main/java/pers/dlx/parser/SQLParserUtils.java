@@ -1,6 +1,5 @@
 package pers.dlx.parser;
 
-import pers.dlx.DbType;
 import pers.dlx.dialect.mysql.MySqlLexer;
 import pers.dlx.dialect.mysql.OracleLexer;
 import pers.dlx.dialect.mysql.PGLexer;

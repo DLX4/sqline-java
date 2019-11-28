@@ -1,4 +1,4 @@
-package pers.dlx;
+package pers.dlx.parser;
 
 /**
  * sql dialect

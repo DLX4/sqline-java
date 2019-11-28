@@ -1,7 +1,5 @@
 package pers.dlx.parser;
 
-import pers.dlx.DbType;
-
 public class SqlParser {
 
     private final Lexer lexer;
@@ -19,9 +17,19 @@ public class SqlParser {
     }
 
     public void convert(String sql, StringBuffer output) {
-        // Process tokens until the end of input
-        while (true) {
+        StringBuilder buf = new StringBuilder(sql.length());
 
+        // Process tokens until the end of input
+        for (; ; ) {
+            lexer.nextToken();
+
+            Token token = lexer.token();
+            if (token == Token.EOF) {
+                break;
+            }
+
+            System.out.println(lexer.info());
         }
+
     }
 }
