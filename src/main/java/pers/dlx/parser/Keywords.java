@@ -18,6 +18,8 @@ public class Keywords {
     static {
         Map<String, Token> map = new HashMap<String, Token>();
 
+        map.put("ADD", Token.ADD);
+
         map.put("ALL", Token.ALL);
         map.put("ALTER", Token.ALTER);
         map.put("AND", Token.AND);

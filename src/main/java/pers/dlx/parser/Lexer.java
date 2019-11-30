@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 import static pers.dlx.parser.CharTypes.*;
@@ -60,6 +61,12 @@ public class Lexer {
     private int startPos;
     private int posLine;
     private int posColumn;
+
+    // token list
+    private LinkedList<TokenNode> tokens = new LinkedList<>();
+
+    // token node instance. contain more info.
+    protected TokenNode tokenNode;
 
     public Lexer(String input) {
         this(input, null);
@@ -208,7 +215,7 @@ public class Lexer {
         savePoint.stringVal = stringVal;
         savePoint.hash = hash;
         savePoint.hash_lower = hash_lower;
-        return this.savePoint = savePoint;
+        return commit().savePoint = savePoint;
     }
 
     public void reset(SavePoint savePoint) {
@@ -258,7 +265,51 @@ public class Lexer {
     }
 
     public final DbType getDbType() {
-        return this.dbType;
+        return commit().dbType;
+    }
+
+    // remove a token from token list
+    public final void remove(TokenNode tokenNode) {
+        TokenNode toRemove = null;
+        for (TokenNode node : tokens) {
+            if (node == tokenNode) {
+                toRemove = node;
+                break;
+            }
+        }
+
+        if (toRemove != null) {
+            tokens.remove(toRemove);
+        }
+    }
+
+    public class TokenNode {
+        public int pos;
+        public int line;
+        public int column;
+        public final Token token;
+        public String stringVal;
+        public final SavePoint mark;
+
+        public TokenNode() {
+            int line = 1;
+            int column = 1;
+            for (int i = 0; i < Lexer.this.startPos; ++i, column++) {
+                char ch = Lexer.this.text.charAt(i);
+                if (ch == '\n') {
+                    column = 1;
+                    line++;
+                }
+            }
+            this.pos = Lexer.this.pos;
+            this.line = line;
+            this.column = column;
+            this.token = Lexer.this.token;
+            if (token == Token.IDENTIFIER || token == Token.LITERAL_ALIAS || token == Token.LITERAL_CHARS) {
+                this.stringVal = Lexer.this.stringVal;
+            }
+            this.mark = Lexer.this.mark();
+        }
     }
 
     public String info() {
@@ -293,7 +344,7 @@ public class Lexer {
         return buf.toString();
     }
 
-    public final void nextTokenComma() {
+    public final Lexer nextTokenComma() {
         if (ch == ' ') {
             scanChar();
         }
@@ -301,19 +352,19 @@ public class Lexer {
         if (ch == ',' || ch == '，') {
             scanChar();
             token = COMMA;
-            return;
+            return commit();
         }
 
         if (ch == ')' || ch == '）') {
             scanChar();
             token = RPAREN;
-            return;
+            return commit();
         }
 
         if (ch == '.') {
             scanChar();
             token = DOT;
-            return;
+            return commit();
         }
 
         if (ch == 'a' || ch == 'A') {
@@ -325,15 +376,15 @@ public class Lexer {
                     ch = ' ';
                     token = Token.AS;
                     stringVal = "AS";
-                    return;
+                    return commit();
                 }
             }
         }
 
-        nextToken();
+        return nextToken();
     }
 
-    public final void nextTokenCommaValue() {
+    public final Lexer nextTokenCommaValue() {
         if (ch == ' ') {
             scanChar();
         }
@@ -341,19 +392,19 @@ public class Lexer {
         if (ch == ',' || ch == '，') {
             scanChar();
             token = COMMA;
-            return;
+            return commit();
         }
 
         if (ch == ')' || ch == '）') {
             scanChar();
             token = RPAREN;
-            return;
+            return commit();
         }
 
         if (ch == '.') {
             scanChar();
             token = DOT;
-            return;
+            return commit();
         }
 
         if (ch == 'a' || ch == 'A') {
@@ -365,15 +416,15 @@ public class Lexer {
                     ch = ' ';
                     token = Token.AS;
                     stringVal = "AS";
-                    return;
+                    return commit();
                 }
             }
         }
 
-        nextTokenValue();
+        return nextTokenValue();
     }
 
-    public final void nextTokenEq() {
+    public final Lexer nextTokenEq() {
         if (ch == ' ') {
             scanChar();
         }
@@ -381,13 +432,13 @@ public class Lexer {
         if (ch == '=') {
             scanChar();
             token = EQ;
-            return;
+            return commit();
         }
 
         if (ch == '.') {
             scanChar();
             token = DOT;
-            return;
+            return commit();
         }
 
         if (ch == 'a' || ch == 'A') {
@@ -399,15 +450,15 @@ public class Lexer {
                     ch = ' ';
                     token = Token.AS;
                     stringVal = "AS";
-                    return;
+                    return commit();
                 }
             }
         }
 
-        nextToken();
+        return nextToken();
     }
 
-    public final void nextTokenLParen() {
+    public final Lexer nextTokenLParen() {
         if (ch == ' ') {
             scanChar();
         }
@@ -415,12 +466,25 @@ public class Lexer {
         if (ch == '(' || ch == '（') {
             scanChar();
             token = LPAREN;
-            return;
+            return commit();
         }
-        nextToken();
+        return nextToken();
     }
 
-    public final void nextTokenValue() {
+    public final Lexer nextTokenRParen() {
+        if (ch == ' ') {
+            scanChar();
+        }
+
+        if (ch == ')' || ch == '）') {
+            scanChar();
+            token = RPAREN;
+            return commit();
+        }
+        return nextToken();
+    }
+
+    public final Lexer nextTokenValue() {
         this.startPos = pos;
         if (ch == ' ') {
             scanChar();
@@ -429,13 +493,13 @@ public class Lexer {
         if (ch == '\'') {
             bufPos = 0;
             scanString();
-            return;
+            return commit();
         }
 
         if (ch == '"') {
             bufPos = 0;
             scanString2_d();
-            return;
+            return commit();
         }
 
         if (ch == '0') {
@@ -447,19 +511,19 @@ public class Lexer {
             } else {
                 scanNumber();
             }
-            return;
+            return commit();
         }
 
         if (ch > '0' && ch <= '9') {
             bufPos = 0;
             scanNumber();
-            return;
+            return commit();
         }
 
         if (ch == '?') {
             scanChar();
             token = Token.QUES;
-            return;
+            return commit();
         }
 
         if (ch == 'n' || ch == 'N') {
@@ -473,7 +537,7 @@ public class Lexer {
                 ch = c4;
                 token = Token.NULL;
                 stringVal = "NULL";
-                return;
+                return commit();
             }
 
             if (c1 == '\'') {
@@ -482,25 +546,25 @@ public class Lexer {
                 ch = '\'';
                 scanString();
                 token = Token.LITERAL_NCHARS;
-                return;
+                return commit();
             }
         }
 
         if (ch == ')') {
             scanChar();
             token = RPAREN;
-            return;
+            return commit();
         }
 
         if (isFirstIdentifierChar(ch)) {
             scanIdentifier();
-            return;
+            return commit();
         }
 
-        nextToken();
+        return nextToken();
     }
 
-    public final void nextTokenBy() {
+    public final Lexer nextTokenBy() {
         while (ch == ' ') {
             scanChar();
         }
@@ -514,15 +578,15 @@ public class Lexer {
                     ch = ' ';
                     token = Token.BY;
                     stringVal = "BY";
-                    return;
+                    return commit();
                 }
             }
         }
 
-        nextToken();
+        return nextToken();
     }
 
-    public final void nextTokenNotOrNull() {
+    public final Lexer nextTokenNotOrNull() {
         while (ch == ' ') {
             scanChar();
         }
@@ -540,7 +604,7 @@ public class Lexer {
                 ch = c3;
                 token = Token.NOT;
                 stringVal = "NOT";
-                return;
+                return commit();
             }
 
             char c4;
@@ -553,33 +617,46 @@ public class Lexer {
                 ch = c4;
                 token = Token.NULL;
                 stringVal = "NULL";
-                return;
+                return commit();
             }
         }
 
-        nextToken();
+        return nextToken();
     }
 
-    public final void nextTokenIdent() {
+    public final Lexer nextTokenIdent() {
         while (ch == ' ') {
             scanChar();
         }
 
         if (isFirstIdentifierChar(ch)) {
             scanIdentifier();
-            return;
+            return commit();
         }
 
         if (ch == ')') {
             scanChar();
             token = RPAREN;
-            return;
+            return commit();
         }
 
-        nextToken();
+        return nextToken();
     }
 
-    public final void nextToken() {
+    // Get next token and make sure it contains the specified token
+    public final boolean nextToken(Token token) {
+        SavePoint mark = mark();
+        Token next = nextToken().token();
+        if (next == token) {
+            return true;
+        } else {
+            reset(mark);
+            return false;
+        }
+    }
+
+    public final Lexer nextToken() {
+
         startPos = pos;
         bufPos = 0;
         if (comments != null && comments.size() > 0) {
@@ -603,18 +680,18 @@ public class Lexer {
 
             if (ch == '$' && charAt(pos + 1) == '{') {
                 scanVariable();
-                return;
+                return commit();
             }
 
             if (isFirstIdentifierChar(ch)) {
                 if (ch == '（') {
                     scanChar();
                     token = LPAREN;
-                    return;
+                    return commit();
                 } else if (ch == '）') {
                     scanChar();
                     token = RPAREN;
-                    return;
+                    return commit();
                 }
 
                 if (ch == 'N' || ch == 'n') {
@@ -623,12 +700,12 @@ public class Lexer {
                         ch = '\'';
                         scanString();
                         token = Token.LITERAL_NCHARS;
-                        return;
+                        return commit();
                     }
                 }
 
                 scanIdentifier();
-                return;
+                return commit();
             }
 
             switch (ch) {
@@ -640,7 +717,7 @@ public class Lexer {
                     } else {
                         scanNumber();
                     }
-                    return;
+                    return commit();
                 case '1':
                 case '2':
                 case '3':
@@ -651,37 +728,37 @@ public class Lexer {
                 case '8':
                 case '9':
                     scanNumber();
-                    return;
+                    return commit();
                 case ',':
                 case '，':
                     scanChar();
                     token = COMMA;
-                    return;
+                    return commit();
                 case '(':
                 case '（':
                     scanChar();
                     token = LPAREN;
-                    return;
+                    return commit();
                 case ')':
                 case '）':
                     scanChar();
                     token = RPAREN;
-                    return;
+                    return commit();
                 case '[':
                     scanLBracket();
-                    return;
+                    return commit();
                 case ']':
                     scanChar();
                     token = RBRACKET;
-                    return;
+                    return commit();
                 case '{':
                     scanChar();
                     token = LBRACE;
-                    return;
+                    return commit();
                 case '}':
                     scanChar();
                     token = RBRACE;
-                    return;
+                    return commit();
                 case ':':
                     scanChar();
                     if (ch == '=') {
@@ -694,20 +771,20 @@ public class Lexer {
                         unscan();
                         scanVariable();
                     }
-                    return;
+                    return commit();
                 case '#':
                     scanSharp();
                     if ((token == Token.LINE_COMMENT || token == Token.MULTI_LINE_COMMENT) && skipComment) {
                         bufPos = 0;
                         continue;
                     }
-                    return;
+                    return commit();
                 case '.':
                     scanChar();
                     if (isDigit(ch) && !isFirstIdentifierChar(charAt(pos - 2))) {
                         unscan();
                         scanNumber();
-                        return;
+                        return commit();
                     } else if (ch == '.') {
                         scanChar();
                         if (ch == '.') {
@@ -719,17 +796,17 @@ public class Lexer {
                     } else {
                         token = DOT;
                     }
-                    return;
+                    return commit();
                 case '\'':
                     scanString();
-                    return;
+                    return commit();
                 case '\"':
                     scanAlias();
-                    return;
+                    return commit();
                 case '*':
                     scanChar();
                     token = Token.STAR;
-                    return;
+                    return commit();
                 case '?':
                     scanChar();
                     if (ch == '?' && DbType.POSTGRESQL.equals(dbType)) {
@@ -754,16 +831,16 @@ public class Lexer {
                     } else {
                         token = Token.QUES;
                     }
-                    return;
+                    return commit();
                 case ';':
                     scanChar();
                     token = Token.SEMI;
-                    return;
+                    return commit();
                 case '`':
                     throw new ParserException("TODO. " + info()); // TODO
                 case '@':
                     scanVariable_at();
-                    return;
+                    return commit();
                 case '-':
                     if (charAt(pos + 1) == '-') {
                         scanComment();
@@ -774,7 +851,7 @@ public class Lexer {
                     } else {
                         scanOperator();
                     }
-                    return;
+                    return commit();
                 case '/':
                     int nextChar = charAt(pos + 1);
                     if (nextChar == '/' || nextChar == '*') {
@@ -787,16 +864,16 @@ public class Lexer {
                         token = Token.SLASH;
                         scanChar();
                     }
-                    return;
+                    return commit();
                 default:
                     if (Character.isLetter(ch)) {
                         scanIdentifier();
-                        return;
+                        return commit();
                     }
 
                     if (isOperator(ch)) {
                         scanOperator();
-                        return;
+                        return commit();
                     }
 
                     if (ch == '\\' && charAt(pos + 1) == 'N'
@@ -804,7 +881,7 @@ public class Lexer {
                         scanChar();
                         scanChar();
                         token = Token.NULL;
-                        return;
+                        return commit();
                     }
 
                     // QS_TODO ?
@@ -815,10 +892,18 @@ public class Lexer {
                         scanChar();
                     }
 
-                    return;
+                    return commit();
             }
         }
 
+    }
+
+    // commit the track of Token 
+    private Lexer commit() {
+        tokenNode = new TokenNode();
+        tokens.add(tokenNode);
+
+        return commit();
     }
 
     protected void scanLBracket() {
@@ -1946,7 +2031,7 @@ public class Lexer {
             }
             this.hash_lower = FnvHash.fnv1a_64_lower(stringVal);
         }
-        return this.hash_lower == hash_lower;
+        return commit().hash_lower == hash_lower;
     }
 
     public final long hash_lower() {
@@ -2041,11 +2126,11 @@ public class Lexer {
     }
 
     public int bp() {
-        return this.pos;
+        return commit().pos;
     }
 
     public char current() {
-        return this.ch;
+        return commit().ch;
     }
 
     public void reset(int mark, char markChar, Token token) {

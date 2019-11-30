@@ -52,7 +52,7 @@ public enum Token {
     IF("IF"),
     SORT("SORT"),
 
-
+    ADD("ADD"),
     ALL("ALL"),
     UNION("UNION"),
     EXCEPT("EXCEPT"),
