@@ -1,55 +1,21 @@
 package pers.dlx.parser;
 
-import java.util.Objects;
-
-import static pers.dlx.parser.Scope.SQL_STMT_ALTER_TABLE;
-import static pers.dlx.parser.Token.ADD;
-
 public class StatementParser {
 
-    public boolean parseAlterStatement(SqlParser parser, StringBuffer output) {
-        boolean exists = false;
+    private final AlterStatementParser alterStatementParser;
 
-        parser.lexer.nextToken();
-        Token next = parser.lexer.token();
+    private final SqlParser parser;
 
-        switch (next) {
-            case TABLE:
-                parseAlterTableStatement(parser, output);
-                break;
-            case INDEX:
-                break;
-            case FUNCTION:
-                break;
-            case PROCEDURE:
-                break;
-            case SEQUENCE:
-                break;
-        }
-        return exists;
+    public StatementParser(SqlParser parser) {
+        this.parser = parser;
+        this.alterStatementParser = new AlterStatementParser(parser);
     }
 
-    public boolean parseAlterTableStatement(SqlParser parser, StringBuffer output) {
-        boolean exists = false;
-        Lexer.TokenNode tableName = parser.lexer.nextTokenIdent().tokenNode;
-
-        Lexer.TokenNode next = parser.lexer.nextToken().tokenNode;
-
-        Scope prevStmtScope = parser.stmtScope;
-        parser.stmtScope = SQL_STMT_ALTER_TABLE;
-
-        // ADD constraint
-        if (Objects.equals(next, ADD)) {
-
-        }
-
-        return exists;
-    }
-
-    public static void parseStatement(SqlParser parser, Scope scope, StringBuffer output) {
+    public void parseStatement(Scope scope) {
         // 解析各种sql语句入口
         switch (parser.lexer.token()) {
             case ALTER:
+                alterStatementParser.parseAlterStatement();
                 break;
 //            case ALLOCATE:
 //                break;
@@ -174,8 +140,7 @@ public class StatementParser {
             case WHILE:
                 break;
             default:
-                    break;
-
+                break;
         }
     }
 }

@@ -62,9 +62,6 @@ public class Lexer {
     private int posLine;
     private int posColumn;
 
-    // token list
-    private LinkedList<TokenNode> tokens = new LinkedList<>();
-
     // token node instance. contain more info.
     protected TokenNode tokenNode;
 
@@ -215,7 +212,7 @@ public class Lexer {
         savePoint.stringVal = stringVal;
         savePoint.hash = hash;
         savePoint.hash_lower = hash_lower;
-        return commit().savePoint = savePoint;
+        return this.savePoint = savePoint;
     }
 
     public void reset(SavePoint savePoint) {
@@ -265,22 +262,7 @@ public class Lexer {
     }
 
     public final DbType getDbType() {
-        return commit().dbType;
-    }
-
-    // remove a token from token list
-    public final void remove(TokenNode tokenNode) {
-        TokenNode toRemove = null;
-        for (TokenNode node : tokens) {
-            if (node == tokenNode) {
-                toRemove = node;
-                break;
-            }
-        }
-
-        if (toRemove != null) {
-            tokens.remove(toRemove);
-        }
+        return this.dbType;
     }
 
     public class TokenNode {
@@ -305,6 +287,27 @@ public class Lexer {
             this.line = line;
             this.column = column;
             this.token = Lexer.this.token;
+            if (token == Token.IDENTIFIER || token == Token.LITERAL_ALIAS || token == Token.LITERAL_CHARS) {
+                this.stringVal = Lexer.this.stringVal;
+            }
+            this.mark = Lexer.this.mark();
+        }
+
+
+        public TokenNode(Token token) {
+            int line = 1;
+            int column = 1;
+            for (int i = 0; i < Lexer.this.startPos; ++i, column++) {
+                char ch = Lexer.this.text.charAt(i);
+                if (ch == '\n') {
+                    column = 1;
+                    line++;
+                }
+            }
+            this.pos = Lexer.this.pos;
+            this.line = line;
+            this.column = column;
+            this.token = token;
             if (token == Token.IDENTIFIER || token == Token.LITERAL_ALIAS || token == Token.LITERAL_CHARS) {
                 this.stringVal = Lexer.this.stringVal;
             }
@@ -344,304 +347,304 @@ public class Lexer {
         return buf.toString();
     }
 
-    public final Lexer nextTokenComma() {
-        if (ch == ' ') {
-            scanChar();
-        }
-
-        if (ch == ',' || ch == '，') {
-            scanChar();
-            token = COMMA;
-            return commit();
-        }
-
-        if (ch == ')' || ch == '）') {
-            scanChar();
-            token = RPAREN;
-            return commit();
-        }
-
-        if (ch == '.') {
-            scanChar();
-            token = DOT;
-            return commit();
-        }
-
-        if (ch == 'a' || ch == 'A') {
-            char ch_next = charAt(pos + 1);
-            if (ch_next == 's' || ch_next == 'S') {
-                char ch_next_2 = charAt(pos + 2);
-                if (ch_next_2 == ' ') {
-                    pos += 2;
-                    ch = ' ';
-                    token = Token.AS;
-                    stringVal = "AS";
-                    return commit();
-                }
-            }
-        }
-
-        return nextToken();
-    }
-
-    public final Lexer nextTokenCommaValue() {
-        if (ch == ' ') {
-            scanChar();
-        }
-
-        if (ch == ',' || ch == '，') {
-            scanChar();
-            token = COMMA;
-            return commit();
-        }
-
-        if (ch == ')' || ch == '）') {
-            scanChar();
-            token = RPAREN;
-            return commit();
-        }
-
-        if (ch == '.') {
-            scanChar();
-            token = DOT;
-            return commit();
-        }
-
-        if (ch == 'a' || ch == 'A') {
-            char ch_next = charAt(pos + 1);
-            if (ch_next == 's' || ch_next == 'S') {
-                char ch_next_2 = charAt(pos + 2);
-                if (ch_next_2 == ' ') {
-                    pos += 2;
-                    ch = ' ';
-                    token = Token.AS;
-                    stringVal = "AS";
-                    return commit();
-                }
-            }
-        }
-
-        return nextTokenValue();
-    }
-
-    public final Lexer nextTokenEq() {
-        if (ch == ' ') {
-            scanChar();
-        }
-
-        if (ch == '=') {
-            scanChar();
-            token = EQ;
-            return commit();
-        }
-
-        if (ch == '.') {
-            scanChar();
-            token = DOT;
-            return commit();
-        }
-
-        if (ch == 'a' || ch == 'A') {
-            char ch_next = charAt(pos + 1);
-            if (ch_next == 's' || ch_next == 'S') {
-                char ch_next_2 = charAt(pos + 2);
-                if (ch_next_2 == ' ') {
-                    pos += 2;
-                    ch = ' ';
-                    token = Token.AS;
-                    stringVal = "AS";
-                    return commit();
-                }
-            }
-        }
-
-        return nextToken();
-    }
-
-    public final Lexer nextTokenLParen() {
-        if (ch == ' ') {
-            scanChar();
-        }
-
-        if (ch == '(' || ch == '（') {
-            scanChar();
-            token = LPAREN;
-            return commit();
-        }
-        return nextToken();
-    }
-
-    public final Lexer nextTokenRParen() {
-        if (ch == ' ') {
-            scanChar();
-        }
-
-        if (ch == ')' || ch == '）') {
-            scanChar();
-            token = RPAREN;
-            return commit();
-        }
-        return nextToken();
-    }
-
-    public final Lexer nextTokenValue() {
-        this.startPos = pos;
-        if (ch == ' ') {
-            scanChar();
-        }
-
-        if (ch == '\'') {
-            bufPos = 0;
-            scanString();
-            return commit();
-        }
-
-        if (ch == '"') {
-            bufPos = 0;
-            scanString2_d();
-            return commit();
-        }
-
-        if (ch == '0') {
-            bufPos = 0;
-            if (charAt(pos + 1) == 'x') {
-                scanChar();
-                scanChar();
-                scanHexaDecimal();
-            } else {
-                scanNumber();
-            }
-            return commit();
-        }
-
-        if (ch > '0' && ch <= '9') {
-            bufPos = 0;
-            scanNumber();
-            return commit();
-        }
-
-        if (ch == '?') {
-            scanChar();
-            token = Token.QUES;
-            return commit();
-        }
-
-        if (ch == 'n' || ch == 'N') {
-            char c1 = 0, c2, c3, c4;
-            if (pos + 4 < text.length()
-                    && ((c1 = text.charAt(pos + 1)) == 'u' || c1 == 'U')
-                    && ((c2 = text.charAt(pos + 2)) == 'l' || c2 == 'L')
-                    && ((c3 = text.charAt(pos + 3)) == 'l' || c3 == 'L')
-                    && (isWhitespace(c4 = text.charAt(pos + 4)) || c4 == ',' || c4 == ')')) {
-                pos += 4;
-                ch = c4;
-                token = Token.NULL;
-                stringVal = "NULL";
-                return commit();
-            }
-
-            if (c1 == '\'') {
-                bufPos = 0;
-                ++pos;
-                ch = '\'';
-                scanString();
-                token = Token.LITERAL_NCHARS;
-                return commit();
-            }
-        }
-
-        if (ch == ')') {
-            scanChar();
-            token = RPAREN;
-            return commit();
-        }
-
-        if (isFirstIdentifierChar(ch)) {
-            scanIdentifier();
-            return commit();
-        }
-
-        return nextToken();
-    }
-
-    public final Lexer nextTokenBy() {
-        while (ch == ' ') {
-            scanChar();
-        }
-
-        if (ch == 'b' || ch == 'B') {
-            char ch_next = charAt(pos + 1);
-            if (ch_next == 'y' || ch_next == 'Y') {
-                char ch_next_2 = charAt(pos + 2);
-                if (ch_next_2 == ' ') {
-                    pos += 2;
-                    ch = ' ';
-                    token = Token.BY;
-                    stringVal = "BY";
-                    return commit();
-                }
-            }
-        }
-
-        return nextToken();
-    }
-
-    public final Lexer nextTokenNotOrNull() {
-        while (ch == ' ') {
-            scanChar();
-        }
-
-
-        if ((ch == 'n' || ch == 'N') && pos + 3 < text.length()) {
-            char c1 = text.charAt(pos + 1);
-            char c2 = text.charAt(pos + 2);
-            char c3 = text.charAt(pos + 3);
-
-            if ((c1 == 'o' || c1 == 'O')
-                    && (c2 == 't' || c2 == 'T')
-                    && isWhitespace(c3)) {
-                pos += 3;
-                ch = c3;
-                token = Token.NOT;
-                stringVal = "NOT";
-                return commit();
-            }
-
-            char c4;
-            if (pos + 4 < text.length()
-                    && (c1 == 'u' || c1 == 'U')
-                    && (c2 == 'l' || c2 == 'L')
-                    && (c3 == 'l' || c3 == 'L')
-                    && isWhitespace(c4 = text.charAt(pos + 4))) {
-                pos += 4;
-                ch = c4;
-                token = Token.NULL;
-                stringVal = "NULL";
-                return commit();
-            }
-        }
-
-        return nextToken();
-    }
-
-    public final Lexer nextTokenIdent() {
-        while (ch == ' ') {
-            scanChar();
-        }
-
-        if (isFirstIdentifierChar(ch)) {
-            scanIdentifier();
-            return commit();
-        }
-
-        if (ch == ')') {
-            scanChar();
-            token = RPAREN;
-            return commit();
-        }
-
-        return nextToken();
-    }
+//    private final Lexer nextTokenComma() {
+//        if (ch == ' ') {
+//            scanChar();
+//        }
+//
+//        if (ch == ',' || ch == '，') {
+//            scanChar();
+//            token = COMMA;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == ')' || ch == '）') {
+//            scanChar();
+//            token = RPAREN;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == '.') {
+//            scanChar();
+//            token = DOT;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == 'a' || ch == 'A') {
+//            char ch_next = charAt(pos + 1);
+//            if (ch_next == 's' || ch_next == 'S') {
+//                char ch_next_2 = charAt(pos + 2);
+//                if (ch_next_2 == ' ') {
+//                    pos += 2;
+//                    ch = ' ';
+//                    token = Token.AS;
+//                    stringVal = "AS";
+//                    return markAndReturn();
+//                }
+//            }
+//        }
+//
+//        return nextToken();
+//    }
+//
+//    private final Lexer nextTokenCommaValue() {
+//        if (ch == ' ') {
+//            scanChar();
+//        }
+//
+//        if (ch == ',' || ch == '，') {
+//            scanChar();
+//            token = COMMA;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == ')' || ch == '）') {
+//            scanChar();
+//            token = RPAREN;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == '.') {
+//            scanChar();
+//            token = DOT;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == 'a' || ch == 'A') {
+//            char ch_next = charAt(pos + 1);
+//            if (ch_next == 's' || ch_next == 'S') {
+//                char ch_next_2 = charAt(pos + 2);
+//                if (ch_next_2 == ' ') {
+//                    pos += 2;
+//                    ch = ' ';
+//                    token = Token.AS;
+//                    stringVal = "AS";
+//                    return markAndReturn();
+//                }
+//            }
+//        }
+//
+//        return nextTokenValue();
+//    }
+//
+//    private final Lexer nextTokenEq() {
+//        if (ch == ' ') {
+//            scanChar();
+//        }
+//
+//        if (ch == '=') {
+//            scanChar();
+//            token = EQ;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == '.') {
+//            scanChar();
+//            token = DOT;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == 'a' || ch == 'A') {
+//            char ch_next = charAt(pos + 1);
+//            if (ch_next == 's' || ch_next == 'S') {
+//                char ch_next_2 = charAt(pos + 2);
+//                if (ch_next_2 == ' ') {
+//                    pos += 2;
+//                    ch = ' ';
+//                    token = Token.AS;
+//                    stringVal = "AS";
+//                    return markAndReturn();
+//                }
+//            }
+//        }
+//
+//        return nextToken();
+//    }
+//
+//    private final Lexer nextTokenLParen() {
+//        if (ch == ' ') {
+//            scanChar();
+//        }
+//
+//        if (ch == '(' || ch == '（') {
+//            scanChar();
+//            token = LPAREN;
+//            return markAndReturn();
+//        }
+//        return nextToken();
+//    }
+//
+//    private final Lexer nextTokenRParen() {
+//        if (ch == ' ') {
+//            scanChar();
+//        }
+//
+//        if (ch == ')' || ch == '）') {
+//            scanChar();
+//            token = RPAREN;
+//            return markAndReturn();
+//        }
+//        return nextToken();
+//    }
+//
+//    private final Lexer nextTokenValue() {
+//        this.startPos = pos;
+//        if (ch == ' ') {
+//            scanChar();
+//        }
+//
+//        if (ch == '\'') {
+//            bufPos = 0;
+//            scanString();
+//            return markAndReturn();
+//        }
+//
+//        if (ch == '"') {
+//            bufPos = 0;
+//            scanString2_d();
+//            return markAndReturn();
+//        }
+//
+//        if (ch == '0') {
+//            bufPos = 0;
+//            if (charAt(pos + 1) == 'x') {
+//                scanChar();
+//                scanChar();
+//                scanHexaDecimal();
+//            } else {
+//                scanNumber();
+//            }
+//            return markAndReturn();
+//        }
+//
+//        if (ch > '0' && ch <= '9') {
+//            bufPos = 0;
+//            scanNumber();
+//            return markAndReturn();
+//        }
+//
+//        if (ch == '?') {
+//            scanChar();
+//            token = Token.QUES;
+//            return markAndReturn();
+//        }
+//
+//        if (ch == 'n' || ch == 'N') {
+//            char c1 = 0, c2, c3, c4;
+//            if (pos + 4 < text.length()
+//                    && ((c1 = text.charAt(pos + 1)) == 'u' || c1 == 'U')
+//                    && ((c2 = text.charAt(pos + 2)) == 'l' || c2 == 'L')
+//                    && ((c3 = text.charAt(pos + 3)) == 'l' || c3 == 'L')
+//                    && (isWhitespace(c4 = text.charAt(pos + 4)) || c4 == ',' || c4 == ')')) {
+//                pos += 4;
+//                ch = c4;
+//                token = Token.NULL;
+//                stringVal = "NULL";
+//                return markAndReturn();
+//            }
+//
+//            if (c1 == '\'') {
+//                bufPos = 0;
+//                ++pos;
+//                ch = '\'';
+//                scanString();
+//                token = Token.LITERAL_NCHARS;
+//                return markAndReturn();
+//            }
+//        }
+//
+//        if (ch == ')') {
+//            scanChar();
+//            token = RPAREN;
+//            return markAndReturn();
+//        }
+//
+//        if (isFirstIdentifierChar(ch)) {
+//            scanIdentifier();
+//            return markAndReturn();
+//        }
+//
+//        return nextToken();
+//    }
+//
+//    private final Lexer nextTokenBy() {
+//        while (ch == ' ') {
+//            scanChar();
+//        }
+//
+//        if (ch == 'b' || ch == 'B') {
+//            char ch_next = charAt(pos + 1);
+//            if (ch_next == 'y' || ch_next == 'Y') {
+//                char ch_next_2 = charAt(pos + 2);
+//                if (ch_next_2 == ' ') {
+//                    pos += 2;
+//                    ch = ' ';
+//                    token = Token.BY;
+//                    stringVal = "BY";
+//                    return markAndReturn();
+//                }
+//            }
+//        }
+//
+//        return nextToken();
+//    }
+//
+//    private final Lexer nextTokenNotOrNull() {
+//        while (ch == ' ') {
+//            scanChar();
+//        }
+//
+//
+//        if ((ch == 'n' || ch == 'N') && pos + 3 < text.length()) {
+//            char c1 = text.charAt(pos + 1);
+//            char c2 = text.charAt(pos + 2);
+//            char c3 = text.charAt(pos + 3);
+//
+//            if ((c1 == 'o' || c1 == 'O')
+//                    && (c2 == 't' || c2 == 'T')
+//                    && isWhitespace(c3)) {
+//                pos += 3;
+//                ch = c3;
+//                token = Token.NOT;
+//                stringVal = "NOT";
+//                return markAndReturn();
+//            }
+//
+//            char c4;
+//            if (pos + 4 < text.length()
+//                    && (c1 == 'u' || c1 == 'U')
+//                    && (c2 == 'l' || c2 == 'L')
+//                    && (c3 == 'l' || c3 == 'L')
+//                    && isWhitespace(c4 = text.charAt(pos + 4))) {
+//                pos += 4;
+//                ch = c4;
+//                token = Token.NULL;
+//                stringVal = "NULL";
+//                return markAndReturn();
+//            }
+//        }
+//
+//        return nextToken();
+//    }
+//
+//    private final Lexer nextTokenIdent() {
+//        while (ch == ' ') {
+//            scanChar();
+//        }
+//
+//        if (isFirstIdentifierChar(ch)) {
+//            scanIdentifier();
+//            return markAndReturn();
+//        }
+//
+//        if (ch == ')') {
+//            scanChar();
+//            token = RPAREN;
+//            return markAndReturn();
+//        }
+//
+//        return nextToken();
+//    }
 
     // Get next token and make sure it contains the specified token
     public final boolean nextToken(Token token) {
@@ -680,18 +683,18 @@ public class Lexer {
 
             if (ch == '$' && charAt(pos + 1) == '{') {
                 scanVariable();
-                return commit();
+                return markAndReturn();
             }
 
             if (isFirstIdentifierChar(ch)) {
                 if (ch == '（') {
                     scanChar();
                     token = LPAREN;
-                    return commit();
+                    return markAndReturn();
                 } else if (ch == '）') {
                     scanChar();
                     token = RPAREN;
-                    return commit();
+                    return markAndReturn();
                 }
 
                 if (ch == 'N' || ch == 'n') {
@@ -700,12 +703,12 @@ public class Lexer {
                         ch = '\'';
                         scanString();
                         token = Token.LITERAL_NCHARS;
-                        return commit();
+                        return markAndReturn();
                     }
                 }
 
                 scanIdentifier();
-                return commit();
+                return markAndReturn();
             }
 
             switch (ch) {
@@ -717,7 +720,7 @@ public class Lexer {
                     } else {
                         scanNumber();
                     }
-                    return commit();
+                    return markAndReturn();
                 case '1':
                 case '2':
                 case '3':
@@ -728,37 +731,37 @@ public class Lexer {
                 case '8':
                 case '9':
                     scanNumber();
-                    return commit();
+                    return markAndReturn();
                 case ',':
                 case '，':
                     scanChar();
                     token = COMMA;
-                    return commit();
+                    return markAndReturn();
                 case '(':
                 case '（':
                     scanChar();
                     token = LPAREN;
-                    return commit();
+                    return markAndReturn();
                 case ')':
                 case '）':
                     scanChar();
                     token = RPAREN;
-                    return commit();
+                    return markAndReturn();
                 case '[':
                     scanLBracket();
-                    return commit();
+                    return markAndReturn();
                 case ']':
                     scanChar();
                     token = RBRACKET;
-                    return commit();
+                    return markAndReturn();
                 case '{':
                     scanChar();
                     token = LBRACE;
-                    return commit();
+                    return markAndReturn();
                 case '}':
                     scanChar();
                     token = RBRACE;
-                    return commit();
+                    return markAndReturn();
                 case ':':
                     scanChar();
                     if (ch == '=') {
@@ -771,20 +774,20 @@ public class Lexer {
                         unscan();
                         scanVariable();
                     }
-                    return commit();
+                    return markAndReturn();
                 case '#':
                     scanSharp();
                     if ((token == Token.LINE_COMMENT || token == Token.MULTI_LINE_COMMENT) && skipComment) {
                         bufPos = 0;
                         continue;
                     }
-                    return commit();
+                    return markAndReturn();
                 case '.':
                     scanChar();
                     if (isDigit(ch) && !isFirstIdentifierChar(charAt(pos - 2))) {
                         unscan();
                         scanNumber();
-                        return commit();
+                        return markAndReturn();
                     } else if (ch == '.') {
                         scanChar();
                         if (ch == '.') {
@@ -796,17 +799,17 @@ public class Lexer {
                     } else {
                         token = DOT;
                     }
-                    return commit();
+                    return markAndReturn();
                 case '\'':
                     scanString();
-                    return commit();
+                    return markAndReturn();
                 case '\"':
                     scanAlias();
-                    return commit();
+                    return markAndReturn();
                 case '*':
                     scanChar();
                     token = Token.STAR;
-                    return commit();
+                    return markAndReturn();
                 case '?':
                     scanChar();
                     if (ch == '?' && DbType.POSTGRESQL.equals(dbType)) {
@@ -831,16 +834,16 @@ public class Lexer {
                     } else {
                         token = Token.QUES;
                     }
-                    return commit();
+                    return markAndReturn();
                 case ';':
                     scanChar();
                     token = Token.SEMI;
-                    return commit();
+                    return markAndReturn();
                 case '`':
                     throw new ParserException("TODO. " + info()); // TODO
                 case '@':
                     scanVariable_at();
-                    return commit();
+                    return markAndReturn();
                 case '-':
                     if (charAt(pos + 1) == '-') {
                         scanComment();
@@ -851,7 +854,7 @@ public class Lexer {
                     } else {
                         scanOperator();
                     }
-                    return commit();
+                    return markAndReturn();
                 case '/':
                     int nextChar = charAt(pos + 1);
                     if (nextChar == '/' || nextChar == '*') {
@@ -864,16 +867,16 @@ public class Lexer {
                         token = Token.SLASH;
                         scanChar();
                     }
-                    return commit();
+                    return markAndReturn();
                 default:
                     if (Character.isLetter(ch)) {
                         scanIdentifier();
-                        return commit();
+                        return markAndReturn();
                     }
 
                     if (isOperator(ch)) {
                         scanOperator();
-                        return commit();
+                        return markAndReturn();
                     }
 
                     if (ch == '\\' && charAt(pos + 1) == 'N'
@@ -881,7 +884,7 @@ public class Lexer {
                         scanChar();
                         scanChar();
                         token = Token.NULL;
-                        return commit();
+                        return markAndReturn();
                     }
 
                     // QS_TODO ?
@@ -892,18 +895,21 @@ public class Lexer {
                         scanChar();
                     }
 
-                    return commit();
+                    return markAndReturn();
             }
         }
 
     }
 
-    // commit the track of Token 
-    private Lexer commit() {
+    // markAndReturn
+    private Lexer markAndReturn() {
         tokenNode = new TokenNode();
-        tokens.add(tokenNode);
+        return this;
+    }
 
-        return commit();
+    // create specified token node
+    public TokenNode createTokenNode(Token token) {
+        return new TokenNode();
     }
 
     protected void scanLBracket() {
@@ -2031,7 +2037,7 @@ public class Lexer {
             }
             this.hash_lower = FnvHash.fnv1a_64_lower(stringVal);
         }
-        return commit().hash_lower == hash_lower;
+        return this.hash_lower == hash_lower;
     }
 
     public final long hash_lower() {
@@ -2126,11 +2132,11 @@ public class Lexer {
     }
 
     public int bp() {
-        return commit().pos;
+        return this.pos;
     }
 
     public char current() {
-        return commit().ch;
+        return this.ch;
     }
 
     public void reset(int mark, char markChar, Token token) {
